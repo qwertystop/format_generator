@@ -38,11 +38,10 @@ def format_generator(template, *args):
     :param args: processed as follows
         If empty, yield template, end.
         If 0th element is string, insert into template with format() and recur on rest of list.
-        If 0th element is tuple, branch using each element as to_insert[0] in turn.
-        If 0th element is list, unpack that list (allows tuples to contain sequences of insertions)
+        If 0th element is list, branch using each element as args[0] in turn.
+        If 0th element is tuple, unpack it onto head of args (allows lists to contain
+            sequences of associated insertions)
     """
-
-
 
     temp = _clear_fields(template)
 
@@ -53,19 +52,19 @@ def _rec_gen(template, *args):
     """
     Defined separately so parsing the fields only needs to happen once
     """
-    if not to_insert:
+    if not args:
         yield template
-    elif isinstance(to_insert[0], basestring):
-        gen = format_generator(template.format(to_insert[0]), to_insert[1:])
+    elif isinstance(args[0], basestring):
+        gen = _rec_gen(template.format(args[0]), *args[1:])
         for res in gen:
             yield res
-    elif isinstance(to_insert[0], tuple):
-        for elt in to_insert[0]:
-            gen = format_generator(template, [elt]+to_insert[1:])
+    elif isinstance(args[0], list):
+        for elt in args[0]:
+            gen = _rec_gen(template, *((elt,) + args[1:]))
             for res in gen:
                 yield res
-    elif isinstance(to_insert[0], list):
-        gen = format_generator(template, *to_insert[0]+to_insert[1:])
+    elif isinstance(args[0], tuple):
+        gen = _rec_gen(template, *(args[0] + args[1:]))
         for res in gen:
             yield res
     else:
@@ -82,6 +81,6 @@ def _clear_fields(template):
     fit = re.finditer(matcher, template)
     res = template
     for inst in fit:
-        num = int(inst[1:-1])
-        res = res.replace(inst, ('{' * (2**num))+('}' * (2**num)), 1)
+        num = int(inst.group(1))
+        res = res.replace(inst.group(0), ('{' * (2**num))+('}' * (2**num)), 1)
     return res
